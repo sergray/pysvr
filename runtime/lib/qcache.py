@@ -1,8 +1,10 @@
+"Query Caching with Redis"
 import dbi, redis, json
-import sys, os
+import sys
 
 ### ------------------------------------------
 class QCache:
+    "Queries Cache"
 
     ### ------------------------------------------
     def __init__(self, rds, dsn):
@@ -13,11 +15,12 @@ class QCache:
     def __enter__(self):
         pass
 
-    def __exit__(self, type, value, tb):
+    def __exit__(self, exc_type, exc_value, traceback):
         self.__rconn = None
 
     ### ------------------------------------------
     def invalidate(self, qname, qkey):
+        "Delete cache record"
         self.__rconn.delete(qname + ':' + qkey)
         
     ### ------------------------------------------
