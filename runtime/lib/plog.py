@@ -143,8 +143,8 @@ def run(appname):
         fobj.flush()
 
 
-__init()
-if __name__ == '__main__':
+def main():
+    "Script execution entry point"
     pidpath = conf.get('plog', 'pidpath', '')
     if not pidpath:
         sys.exit('Error: missing pidpath in app.ini')
@@ -160,4 +160,10 @@ if __name__ == '__main__':
     __init()  
 
     # run the loop
-    run(len(sys.argv) > 1 and sys.argv[1] or '')
+    run(conf.get('app', 'name', 'UNKNOWN'))
+
+
+__init()
+
+if __name__ == '__main__':
+    main()
