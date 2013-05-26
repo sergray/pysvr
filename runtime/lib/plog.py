@@ -58,8 +58,9 @@ def __daemonize():
             # exit first parent
             os.wait()   # wait for second parent
             sys.exit(0)
-    except OSError, e:
-        print >>sys.stderr, "fork #1 failed: %d (%s)" % (e.errno, e.strerror)
+    except OSError, exc:
+        print >> sys.stderr, "fork #1 failed: %d (%s)" % (
+            exc.errno, exc.strerror)
         sys.exit(1)
 
     # decouple from parent environment
@@ -74,8 +75,9 @@ def __daemonize():
             # print pid
             sys.exit(0)
 
-    except OSError, e:
-        print >>sys.stderr, "fork #2 failed: %d (%s)" % (e.errno, e.strerror)
+    except OSError, exc:
+        print >> sys.stderr, "fork #2 failed: %d (%s)" % (
+            exc.errno, exc.strerror)
         sys.exit(1)
 
     #change to data directory if needed
