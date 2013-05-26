@@ -53,76 +53,79 @@ class Pool:
         
 ### ------------------------------------------
 class DB:
-    def __init__(self, dsn):
-        self.__dsn = dsn
+    "Database abstraction layer"
+    def __init__(self, dsn_str):
+        self.__dsn = dsn_str
         self.__conn = None
 
     def __enter__(self):
         return self.open()
 
-    def __exit__(self, type, value, tb):
+    def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
     def open(self):
+        """Open logical database connection using pool of connections. 
+        Return self instance."""
         if not self.__conn:
             self.__conn = Pool.get(self.__dsn)
         return self
 
     def close(self):
-        c = self.__conn
+        """Close logical database connection, releasing and returning the
+        actual connection to the pool"""
+        db_con = self.__conn
         self.__conn = None
-        if c:
-            c.commit()
-            Pool.put(self.__dsn, c)
+        if db_con:
+            db_con.commit()
+            Pool.put(self.__dsn, db_con)
 
-    def query(self, sql, param):
-        ok = False
+    def query(self, sql_str, params):
+        "Execute sql_str query with params and return all fetched results"
+        result = None
         cur = self.__conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         try:
-            cur.execute(sql, param)
-            out = cur.fetchall()
-            ok = True
-            return out
+            cur.execute(sql_str, params)
+            result = cur.fetchall()
+        except psycopg2.Error:
+            self.__conn.rollback()
+        else:
+            self.__conn.commit()
         finally:
             cur.close()
-            if ok:
-                self.__conn.commit()
-            else:
-                self.__conn.rollback()
+        return result
 
-    def modify(self, sql, param):
-        ok = False
+    def modify(self, sql_str, params):
+        "Execute sql_str query with params and return count of modified rows"
+        result = None
         cur = self.__conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         try:
-            cur.execute(sql, param)
-            out = cur.rowcount
-            ok = True
-            return out
+            cur.execute(sql_str, params)
+            result = cur.rowcount
+        except psycopg2.Error:
+            self.__conn.rollback()
+        else:
+            self.__conn.commit()
         finally:
             cur.close()
-            if ok:
-                self.__conn.commit()
-            else:
-                self.__conn.rollback()
+        return result                
         
     def multi_modify(self, sqlist):
-        ok = False
+        """Execute sql queries with parameters given in sqlist.
+        Return list with counts of modified rows"""
+        result_list = []
         cur = self.__conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        out = []
         try:
-            for (sql, param) in sqlist:
+            for sql, param in sqlist:
                 cur.execute(sql, param)
-                out += [cur.rowcount]
-            ok = True
-            return out
+                result_list.append(cur.rowcount)
+        except psycopg2.Error:
+            self.__conn.rollback()
+        else:
+            self.__conn.commit()
         finally:
             cur.close()
-            if ok:
-                self.__conn.commit()
-            else:
-                self.__conn.rollback()
-        
-
+        return result_list
 
 ### ------------------------------------------
 def dsn(dbname, uname, host, port='5432'):
