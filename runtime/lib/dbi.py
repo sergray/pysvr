@@ -1,19 +1,22 @@
+"Database Interface"
+
 import psycopg2, psycopg2.extras
 import sys, os, time
 
 ### ------------------------------------------
 class Error(Exception):
-    '''Base class for exceptions in this module'''
+    "Base class for exceptions in dbi module"
 
 ### ------------------------------------------
+# FIXME redefinition of builtin Python exception RuntimeError
 class RuntimeError(Error):
+    "Generic error during execution of dbi code"
     def __init__(self, msg):
-        self.msg = msg
-    def __str__(self):
-        return self.msg
+        super(RuntimeError, self).__init__(msg)
 
 ### ------------------------------------------
 class ConfigError(RuntimeError):
+    "Configuration error in dbi module"
     def __init__(self, msg):
         super(ConfigError, self).__init__(msg)
 
