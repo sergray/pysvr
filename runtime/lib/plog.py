@@ -1,13 +1,21 @@
-import sys, os, json
-from socket import *
+"""Consolidated logging of processes running on the same machine via UDP.
+
+Provides logging functions and implements UDP server, writing log messages
+to the file. Script execution starts server."""
+# import python modules
+import sys, os, resource, socket
 from time import gmtime
+# import custom modules
 import conf
 
+# global variables
 sock, dstaddr = None, None
 
 def __init():
+    """Initialize module. Establish UDP connection with remote end,
+    given in config."""
     global sock, dstaddr
-    sock = socket(AF_INET, SOCK_DGRAM)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     port = conf.get('plog', 'port')
     dstaddr = ('localhost', int(port))
 
@@ -20,15 +28,19 @@ def __send(lev, msg):
     sock.sendto(pkt, dstaddr)
 
 def error(msg):
+    "Send ERROR msg"
     __send('ERROR', msg)
 
 def info(msg):
+    "Send INFO msg"
     __send('INFO ', msg)
 
 def debug(msg):
+    "Send DEBUG msg"
     __send('DEBUG', msg)
 
 def __daemonize():
+    "Daemonize current process"
     # do the UNIX double-fork magic, see Stevens' "Advanced
     # Programming in the UNIX Environment" for details (ISBN 0201563177)
     try:
@@ -63,7 +75,6 @@ def __daemonize():
     if os.umask(0) == -1:
         sys.exit('umask failed')
 
-    import resource             # Resource usage information.
     maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
     if (maxfd == resource.RLIM_INFINITY):
         maxfd = 1024
