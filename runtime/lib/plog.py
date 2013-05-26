@@ -19,11 +19,21 @@ def __init():
     port = conf.get('plog', 'port')
     dstaddr = ('localhost', int(port))
 
-def __send(lev, msg):
-    t = gmtime()
-    date = '%04d/%02d/%02d' % (t.tm_year, t.tm_mon, t.tm_mday)
-    time = '%02d:%02d:%02d' % (t.tm_hour, t.tm_min, t.tm_sec)
-    pkt = ' '.join( [date, time, lev, '-', msg] )
+def date_str(time_tuple):
+    "Return date string for given time_tuple"
+    return "%04d/%02d/%02d" % (
+        time_tuple.tm_year, time_tuple.tm_mon, time_tuple.tm_mday)
+
+def time_str(time_tuple):
+    "Return time string for given time_tuple"
+    return "%02d:%02d:%02d" % (
+        time_tuple.tm_hour, time_tuple.tm_min, time_tuple.tm_sec)
+
+
+def __send(level, message):
+    "Send logging message string with level given as string to remote service"
+    gmt = gmtime()
+    pkt = ' '.join([date_str(gmt), time_str(gmt), level, '-', message])
     sock.sendto(pkt, dstaddr)
 
 def error(msg):
@@ -100,12 +110,10 @@ def run(appname):
 
     ftime = gmtime()
     fname = mkfname(ftime)
-    fp = open(fname, 'a+b')
-    fp.write('%04d/%02d/%02d %02d:%02d:%02d INFO  plog started; app=%s\n'
-             % (ftime.tm_year, ftime.tm_mon, ftime.tm_mday,
-                ftime.tm_hour, ftime.tm_min, ftime.tm_sec,
-                conf.get('app', 'name', 'UNKNOWN')))
-    fp.flush()
+    fobj = open(fname, 'a+b')
+    fobj.write('%s %s INFO  plog started; app=%s\n' % (
+        date_str(ftime), time_str(ftime), appname))
+    fobj.flush()
     
     while 1:
         pkt, addr = sock.recvfrom(1024*8)
@@ -114,19 +122,19 @@ def run(appname):
         now = gmtime()
         if now.tm_mday != ftime.tm_mday or now.tm_mon != ftime.tm_mon:
             oldfname = fname
-            fp.close()
+            fobj.close()
 
             # open new file
             ftime = now
             fname = mkfname(ftime)
-            fp = open(fname, 'a+b')
+            fobj = open(fname, 'a+b')
 
             # gzip old file in the background
             os.system("nohup gzip '%s' &" % oldfname)
             
-        fp.write(pkt)
-        fp.write('\n')
-        fp.flush()
+        fobj.write(pkt)
+        fobj.write('\n')
+        fobj.flush()
 
 
 __init()
