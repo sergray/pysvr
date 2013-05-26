@@ -129,14 +129,21 @@ class DB:
 
 ### ------------------------------------------
 def dsn(dbname, uname, host, port='5432'):
-    def env(k, defval=''):
-        r = os.environ.get(k, defval)
-        if not r:
-            raise ConfigError('env-var %s not set' % k)
-        return r
+    """Return postgres-specific Data-Source Name string, composed from
+    the given arguments and environment variable containing password.
 
-    p = env('PG_PASSWORD_%s_%s' % (dbname.upper(), uname.upper()))
-    return 'dbname=%s user=%s password=%s host=%s port=%s' % (dbname, uname, p, host, port)
+    Can raise ConfigError if environment variable does not exist."""
+
+    def env(varname, defval=''):
+        "Utility function returning value of environment variable varname"
+        retval = os.environ.get(varname, defval)
+        if not retval:
+            raise ConfigError('env-var %s not set' % varname)
+        return retval
+
+    password = env('PG_PASSWORD_%s_%s' % (dbname.upper(), uname.upper()))
+    return 'dbname=%s user=%s password=%s host=%s port=%s' % (
+        dbname, uname, password, host, port)
 
 
 ### ------------------------------------------
