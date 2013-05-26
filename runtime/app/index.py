@@ -1,6 +1,7 @@
 #!/usr/bin/env python2.7
+"Sample RESTful API"
+
 import sys, os, json
-import bottle
 from bottle import route, run, request, abort, default_app
 
 scriptdir = os.path.dirname(os.path.abspath(__file__))
@@ -10,8 +11,8 @@ import conf, plog
 
 plog.info('started')
 
-# see slide 33 at http://www.slideshare.net/apigee/restful-api-design-second-edition?ref= 
-# for explanation about the API 
+# for explanation about the API see slide 33 at
+# http://www.slideshare.net/apigee/restful-api-design-second-edition
 
 @route('/dogs', method='POST')
 @route('/dogs/', method='POST')
