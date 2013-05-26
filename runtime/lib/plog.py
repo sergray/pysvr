@@ -100,6 +100,8 @@ def __daemonize():
 
 
 def run(appname):
+    """Start UDP server accepting packets with log messages and 
+    writing them to rotated file in logdir"""
     sock.bind(dstaddr)
     dstdir = conf.get('plog', 'logdir')
     print 'plog udp server: listening to port', dstaddr[1]
@@ -107,8 +109,9 @@ def run(appname):
 
     os.chdir(dstdir)
 
-    def mkfname(tm):
-        return 'app-%04d%02d%02d.log' % (tm.tm_year, tm.tm_mon, tm.tm_mday)
+    def mkfname(gmt):
+        "Return file name string for given gmt named time tuple"
+        return 'app-%04d%02d%02d.log' % (gmt.tm_year, gmt.tm_mon, gmt.tm_mday)
 
     ftime = gmtime()
     fname = mkfname(ftime)
@@ -122,6 +125,7 @@ def run(appname):
         if not pkt:
             break
         now = gmtime()
+        # rotate log file if necessary
         if now.tm_mday != ftime.tm_mday or now.tm_mon != ftime.tm_mon:
             oldfname = fname
             fobj.close()
