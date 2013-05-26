@@ -82,7 +82,7 @@ class QCache:
         either from cache or from database with update of the cache.
 
         query_name string is the prefix of the cache key name
-        
+
         timeout integer determines expiration of cached value. If timeout is
         negative, then caching is bypassed and data from database is returned.
         """
@@ -93,13 +93,13 @@ class QCache:
         if len(query_params) == 1:
             read_cache = functools.partial(self.__rconn.get, key_name)
             write_cache = functools.partial(self.__rconn.set, key_name)
-            else:
+        else:
             field_name = repr(query_params[1:])
             read_cache = functools.partial(self.__rconn.hget, key_name,
                 field_name)
             write_cache = functools.partial(self.__rconn.hset, key_name,
                 field_name)
-
+        
         if timeout <= 0:  # then bypass cache check and query database
             timeout = 0
         else:  # check cache
@@ -119,7 +119,7 @@ class QCache:
         try:  # get the first row
             rval = db_result[0]
         except IndexError:
-        return None
+            return None
         else:
             rval['_mc'] = 0
             if timeout:  # then put in cache
@@ -128,9 +128,11 @@ class QCache:
             return rval
 
 ### ------------------------------------------
-if __name__ == '__main__':
+def test_script():
+    "Simple module tests executable from command-line"
     if len(sys.argv) != 7:
-        sys.exit('Usage: %s uname dbname dbhost dbport rhost rport' % sys.argv[0])
+        sys.exit(
+            'Usage: %s uname dbname dbhost dbport rhost rport' % sys.argv[0])
 
     (uname, dbname, host, port, rhost, rport) = sys.argv[1:]
 
@@ -140,56 +142,63 @@ if __name__ == '__main__':
 
     def test_qrun1():
         qc.invalidate('myquery', 'pg_catalog')
-        r = qc.run1('myquery',
-                    'select * from pg_tables where schemaname=%s and tablename=%s',
-                    ('pg_catalog', 'pg_class'), 60)
-        assert r['_mc'] == 0
+        res = qc.run1(
+            'myquery',
+            'select * from pg_tables where schemaname=%s and tablename=%s',
+            ('pg_catalog', 'pg_class'), 60)
+        assert res['_mc'] == 0
 
-        r = qc.run1('myquery',
-                    'select * from pg_tables where schemaname=%s and tablename=%s',
-                    ('pg_catalog', 'pg_type'), 60)
-        assert r['_mc'] == 0
+        res = qc.run1(
+            'myquery',
+            'select * from pg_tables where schemaname=%s and tablename=%s',
+            ('pg_catalog', 'pg_type'), 60)
+        assert res['_mc'] == 0
 
-        r = qc.run1('myquery',
-                    'select * from pg_tables where schemaname=%s and tablename=%s',
-                    ('pg_catalog', 'pg_class'), 60)
-        assert r['_mc'] == 1
+        res = qc.run1(
+            'myquery',
+            'select * from pg_tables where schemaname=%s and tablename=%s',
+            ('pg_catalog', 'pg_class'), 60)
+        assert res['_mc'] == 1
 
-        r = qc.run1('myquery',
-                    'select * from pg_tables where schemaname=%s and tablename=%s',
-                    ('pg_catalog', 'pg_type'), 60)
-        assert r['_mc'] == 1
+        res = qc.run1(
+            'myquery',
+            'select * from pg_tables where schemaname=%s and tablename=%s',
+            ('pg_catalog', 'pg_type'), 60)
+        assert res['_mc'] == 1
 
     def test_qrun10():
         qc.invalidate('anotherquery', 'pg_class')
         qc.invalidate('anotherquery', 'pg_type')
-        r = qc.run10('anotherquery',
+        res = qc.run10('anotherquery',
                      '''select tablename as _qkey, * from pg_tables
                         where schemaname='pg_catalog'
                         and tablename in (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)''',
                      ('pg_class', 'pg_type'), 60)
-        assert r['pg_class']['_mc'] == 0
-        assert r['pg_type']['_mc'] == 0
+        assert res['pg_class']['_mc'] == 0
+        assert res['pg_type']['_mc'] == 0
 
-        r = qc.run10('anotherquery',
+        res = qc.run10('anotherquery',
                      '''select tablename as _qkey, * from pg_tables
                         where schemaname='pg_catalog'
                         and tablename in (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)''',
                      ('pg_class', 'pg_type', 'pg_am'), 60)
-        assert r['pg_class']['_mc'] == 1
-        assert r['pg_type']['_mc'] == 1
-        assert r['pg_am']['_mc'] == 0
+        assert res['pg_class']['_mc'] == 1
+        assert res['pg_type']['_mc'] == 1
+        assert res['pg_am']['_mc'] == 0
 
-        r = qc.run10('anotherquery',
+        res = qc.run10('anotherquery',
                      '''select tablename as _qkey, * from pg_tables
                         where schemaname='pg_catalog'
                         and tablename in (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)''',
                      ('pg_class', 'pg_type', 'pg_am'), 60)
-        assert r['pg_class']['_mc'] == 1
-        assert r['pg_type']['_mc'] == 1
-        assert r['pg_am']['_mc'] == 1
+        assert res['pg_class']['_mc'] == 1
+        assert res['pg_type']['_mc'] == 1
+        assert res['pg_am']['_mc'] == 1
 
     
     test_qrun1()
     test_qrun1()
     test_qrun10()
+
+if __name__ == '__main__':
+    test_script()
