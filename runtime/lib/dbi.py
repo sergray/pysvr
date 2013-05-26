@@ -131,7 +131,7 @@ class DB:
 def dsn(dbname, uname, host, port='5432'):
     """Return postgres-specific Data-Source Name string, composed from
     the given arguments and environment variable containing password.
-
+    
     Can raise ConfigError if environment variable does not exist."""
 
     def env(varname, defval=''):
@@ -147,27 +147,31 @@ def dsn(dbname, uname, host, port='5432'):
 
 
 ### ------------------------------------------
-if __name__ == '__main__':
+def test_script():
+    "Implements simple tests, which can be run from comand-line"
     if len(sys.argv) != 6:
         sys.exit('Usage: %s uname dbname host port {sql|-}' % sys.argv[0])
 
-    (uname, dbname, host, port, sql) = sys.argv[1:]
+    uname, dbname, host, port, sql = sys.argv[1:]
     if sql == '-':
         sql = sys.stdin.read()
         if not sql:
             sys.exit('Error: cannot read sql from stdin')
 
-    d = dsn(dbname, uname, host, port)
+    dsn_str = dsn(dbname, uname, host, port)
 
     # this will create one connection
-    with DB(d) as db:
-        print db.query(sql, ())
+    with DB(dsn_str) as db1:
+        print db1.query(sql, ())
         # this will create another connection
-        with DB(d) as db:
-            for i in db.query(sql, ()):
+        with DB(dsn_str) as db2:
+            for i in db2.query(sql, ()):
                 print i
 
     # reuse one of the connections above
-    with DB(d) as db:
-        for i in db.query(sql, ()):
+    with DB(dsn_str) as db3:
+        for i in db3.query(sql, ()):
             print i
+
+if __name__ == '__main__':
+    test_script()
