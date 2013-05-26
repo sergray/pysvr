@@ -20,7 +20,6 @@ def __init():
     dstaddr = ('localhost', int(port))
 
 def __send(lev, msg):
-    global sock, dstaddr
     t = gmtime()
     date = '%04d/%02d/%02d' % (t.tm_year, t.tm_mon, t.tm_mday)
     time = '%02d:%02d:%02d' % (t.tm_hour, t.tm_min, t.tm_sec)
@@ -89,7 +88,6 @@ def __daemonize():
 
 
 def run(appname):
-    global sock, dstaddr
     sock.bind(dstaddr)
     dstdir = conf.get('plog', 'logdir')
     print 'plog udp server: listening to port', dstaddr[1]
