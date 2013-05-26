@@ -56,8 +56,9 @@ class QCache:
 
         if notfound:
             # pack it up to multiple of 10
-            while len(notfound) % 10 != 0:
-                notfound += [None]
+            pad_size = 10 - len(notfound) % 10
+            if pad_size < 10:
+                notfound += [None] * pad_size
             # split into list of list, each with 10 keys
             keychunk = [notfound[i:i+10] for i in xrange(0, len(notfound), 10)]
             with dbi.DB(self.__dsn) as db:
