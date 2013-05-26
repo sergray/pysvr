@@ -24,23 +24,35 @@ class QCache:
         self.__rconn.delete(qname + ':' + qkey)
         
     ### ------------------------------------------
-    def run10(self, qname, sql, qkeys, tmout):
+    def run10(self, query_name, sql_query, query_params, timeout):
+        """
+        Slice query_params in batches having 10 parameters. Batch is filled
+        with None if necessary. Execute sql_query string with each batch of
+        parameters. Query result must contain _qkey field which defines
+        cached value.
+
+        Returns mapping of _qkey keys to corresponding rows. Cache rows by
+        query_name string and _qkey.
+
+        timeout integer defines expiration time of cached row, negative
+        values bypass caching.
+        """
         notfound = []
         out = {}
         
-        if tmout <= 0:
-            tmout = 0
-            notfound = qkeys[:]
+        if timeout <= 0:
+            timeout = 0
+            notfound += query_params
         else:
             # check cache
-            for k in qkeys:
-                r = self.__rconn.get(qname + ':' + k)
-                if r:
-                    r = json.loads(r)
-                    r['_mc'] = 1
-                    out[k] = r
+            for qkey in query_params:
+                rval = self.__rconn.get(query_name + ':' + qkey)
+                if rval:
+                    rval = json.loads(rval)
+                    rval['_mc'] = 1
+                    out[qkey] = rval
                 else:
-                    notfound.append(k)
+                    notfound.append(qkey)
 
         if notfound:
             # pack it up to multiple of 10
@@ -51,13 +63,14 @@ class QCache:
             with dbi.DB(self.__dsn) as db:
                 for k10 in keychunk:
                     # run the query with 10 keys at a time
-                    for r in db.query(sql, k10):
-                        r['_mc'] = 0
-                        k = r['_qkey']
-                        out[k] = r
+                    for row in db.query(sql_query, k10):
+                        row['_mc'] = 0
+                        qkey = row['_qkey']
+                        out[qkey] = row
                         # put in cache
-                        if tmout:
-                            self.__rconn.setex(qname + ':' + k, tmout, json.dumps(r))
+                        if timeout:
+                            self.__rconn.setex(query_name + ':' + qkey, timeout,
+                                               json.dumps(row))
         return out
 
 
