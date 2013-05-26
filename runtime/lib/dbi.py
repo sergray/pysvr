@@ -2,6 +2,7 @@
 
 import psycopg2, psycopg2.extras
 import sys, os, time
+from collections import defaultdict, deque
 
 ### ------------------------------------------
 class Error(Exception):
@@ -21,24 +22,34 @@ class ConfigError(RuntimeError):
         super(ConfigError, self).__init__(msg)
 
 ### ------------------------------------------
+# TODO thread safe Pool of connections
 class Pool:
-    tab = {}
+    "Pool of database connections"
+
+    tab = defaultdict(deque)  # deque has O(1) append/pop operations
+    recycle_after = 60 * 10  # seconds for connections recycling
     
     @staticmethod
-    def put(dsn, dbconn):
-        if dsn not in Pool.tab:
-            Pool.tab[dsn] = []
-        Pool.tab[dsn].append( (dbconn, time.time() + 60*10) )
+    def put(dsn_str, dbconn):
+        "Add dbconn to the list of connections for dsn_str"
+        dsn_connections = Pool.tab[dsn_str]
+        ttl = time.time() + Pool.recycle_after
+        dsn_connections.append((dbconn, ttl))
 
     @staticmethod
-    def get(dsn):
+    def get(dsn_str):
+        """Return psycopg connection for given dsn_str.
+        Purge expired connections with O(n), where n=len(Pool.tab)
+        """
         while True:
-            (c, xtime) = Pool.tab.get(dsn, [ (None, None) ]).pop(0)
-            if not c:
-                return psycopg2.connect(dsn)
-            if xtime > time.time():
-                return c
-            c.close()
+            try:
+                dbconn, ttl = Pool.tab[dsn_str].popleft()
+            except IndexError:
+                return psycopg2.connect(dsn_str)
+            else:
+                if ttl > time.time():
+                    return dbconn
+                dbconn.close()
         
 ### ------------------------------------------
 class DB:
