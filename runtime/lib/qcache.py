@@ -1,6 +1,7 @@
 "Query Caching with Redis"
 import dbi, redis, json
 import sys
+import functools
 
 ### ------------------------------------------
 class QCache:
@@ -76,43 +77,55 @@ class QCache:
 
 
     ### ------------------------------------------
-    def run1(self, qname, sql, qkey, tmout):
+    def run1(self, query_name, sql_query, query_params, timeout):
+        """Return the first row for sql_query string with query_params
+        either from cache or from database with update of the cache.
 
-        if not isinstance(qkey, list) and not isinstance(qkey, tuple):
-            qkey = (qkey,)
+        query_name string is the prefix of the cache key name
         
-        if tmout <= 0:
-            tmout = 0
-        else:
-            # check cache
-            if len(qkey) == 1:
-                r = self.__rconn.get(qname + ':' + qkey[0])
-            else:
-                r = self.__rconn.hget(qname + ':' + qkey[0], repr(qkey[1:]))
+        timeout integer determines expiration of cached value. If timeout is
+        negative, then caching is bypassed and data from database is returned.
+        """
+        if not isinstance(query_params, (list, tuple)):
+            query_params = (query_params,)
 
-            # cache hit?
-            if r:
-                r = json.loads(r)
-                r['_mc'] = 1
-                return r
+        key_name = query_name + ':' + query_params[0]
+        if len(query_params) == 1:
+            read_cache = functools.partial(self.__rconn.get, key_name)
+            write_cache = functools.partial(self.__rconn.set, key_name)
+            else:
+            field_name = repr(query_params[1:])
+            read_cache = functools.partial(self.__rconn.hget, key_name,
+                field_name)
+            write_cache = functools.partial(self.__rconn.hset, key_name,
+                field_name)
+
+        if timeout <= 0:  # then bypass cache check and query database
+            timeout = 0
+        else:  # check cache
+            rval = read_cache()
+            if rval:  # then it is a cache hit
+                rval = json.loads(rval)
+                rval['_mc'] = 1
+                return rval
 
         # cache miss. run query.
         with dbi.DB(self.__dsn) as db:
-            # note: this loop will only run once
-            for r in db.query(sql, qkey):
-                r['_mc'] = 0
-                # put in cache
-                if tmout:
-                    if len(qkey) == 1:
-                        self.__rconn.setex(qname + ':' + qkey[0], tmout, json.dumps(r))
-                    else:
-                        self.__rconn.hset(qname + ':' + qkey[0], repr(qkey[1:]), json.dumps(r))
-                        self.__rconn.expire(qname + ':' + qkey[0], tmout)
-                    
-                return r
+            # process result in scope out of with statement,
+            # so db connection is returned to the pool asap
+            db_result = db.query(sql_query, query_params)
 
+        # FIXME maybe all rows should be cached?
+        try:  # get the first row
+            rval = db_result[0]
+        except IndexError:
         return None
-
+        else:
+            rval['_mc'] = 0
+            if timeout:  # then put in cache
+                write_cache(json.dumps(rval))
+                self.__rconn.expire(key_name, timeout)
+            return rval
 
 ### ------------------------------------------
 if __name__ == '__main__':
